@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backend Framework</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+        }
+        
+        p {
+            color: #555;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+        
+        .status {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f7f7f7;
+            border-radius: 10px;
+        }
+        
+        .status h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        
+        .badge {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        
+        .badge-success {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .badge-error {
+            background: #f44336;
+            color: white;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 20px;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Backend Framework</h1>
+        <p>Welcome to your Docker-based backend framework with PostgreSQL, Nginx, and uWSGI!</p>
+        
+        <div class="status">
+            <h2>System Status</h2>
+            <div id="status-content">
+                <div class="status-item">
+                    <span>Frontend</span>
+                    <span class="badge badge-success">Running</span>
+                </div>
+                <div class="status-item">
+                    <span>API</span>
+                    <span class="badge" id="api-status">Checking...</span>
+                </div>
+            </div>
+            <button onclick="checkStatus()">Refresh Status</button>
+        </div>
+    </div>
+    
+    <script>
+        async function checkStatus() {
+            const apiBadge = document.getElementById('api-status');
+            apiBadge.textContent = 'Checking...';
+            apiBadge.className = 'badge';
+            
+            try {
+                const response = await fetch('/api-status');
+                const data = await response.json();
+                
+                if (data.api_reachable) {
+                    apiBadge.textContent = 'Running';
+                    apiBadge.className = 'badge badge-success';
+                } else {
+                    apiBadge.textContent = 'Error';
+                    apiBadge.className = 'badge badge-error';
+                }
+            } catch (error) {
+                apiBadge.textContent = 'Error';
+                apiBadge.className = 'badge badge-error';
+            }
+        }
+        
+        // Check status on load
+        checkStatus();
+    </script>
+</body>
+</html>
