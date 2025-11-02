@@ -1,12 +1,14 @@
 # API Development Guide
 
-This guide covers everything you need to build robust, scalable APIs with the Backend Framework.
+This guide covers everything you need to build robust, scalable APIs with the Backend Framework's OAuth 2.0 authentication and multi-tenant architecture.
 
 ## Architecture Overview
 
 The API service is built on:
 - **Flask**: Lightweight and flexible web framework
 - **SQLAlchemy**: Powerful ORM for database operations
+- **OAuth 2.0 (Authlib)**: Industry-standard authentication
+- **Multi-Tenant Support**: Complete data isolation between tenants
 - **uWSGI**: Production-grade WSGI server
 - **Nginx**: Reverse proxy and load balancer
 
@@ -37,47 +39,63 @@ api/
 
 ## Creating API Endpoints
 
-### Basic Endpoint
+### Basic Authenticated Endpoint
 
 ```python
 # routes.py
 from flask import Blueprint, jsonify, request
+from oauth2 import require_oauth
+from tenant_context import get_current_tenant
 
 api_bp = Blueprint('api', __name__)
 
 @api_bp.route('/items', methods=['GET'])
+@require_oauth('read')
 def get_items():
-    """Retrieve all items"""
+    """Retrieve all items for current tenant"""
+    tenant = get_current_tenant()
+    
     return jsonify({
         'items': [],
-        'count': 0
+        'count': 0,
+        'tenant': tenant.name
     }), 200
 ```
 
-### Endpoint with Path Parameters
+### Endpoint with Path Parameters (Tenant-Scoped)
 
 ```python
+from tenant_context import tenant_filter
+
 @api_bp.route('/items/<int:item_id>', methods=['GET'])
+@require_oauth('read')
 def get_item(item_id):
-    """Retrieve a specific item"""
-    # Fetch item from database
-    item = Item.query.get_or_404(item_id)
+    """Retrieve a specific item (automatically scoped to tenant)"""
+    # tenant_filter ensures only items from current tenant are accessible
+    item = tenant_filter(Item.query).filter_by(id=item_id).first_or_404()
     return jsonify(item.to_dict()), 200
 ```
 
-### Endpoint with Query Parameters
+## Tenant-Aware Queries
+
+### Automatic Tenant Filtering
+
+Use the `tenant_filter()` helper to automatically scope queries:
 
 ```python
+from tenant_context import tenant_filter
+
 @api_bp.route('/items/search', methods=['GET'])
+@require_oauth('read')
 def search_items():
-    """Search items with filters"""
-    # Get query parameters
+    """Search items within current tenant"""
     query = request.args.get('q', '')
     category = request.args.get('category', None)
     limit = request.args.get('limit', 10, type=int)
     
-    # Build query
-    items_query = Item.query
+    # Build query - automatically filtered by tenant
+    items_query = tenant_filter(Item.query)
+    
     if query:
         items_query = items_query.filter(Item.name.ilike(f'%{query}%'))
     if category:
@@ -91,7 +109,30 @@ def search_items():
     }), 200
 ```
 
-### POST Endpoint with JSON Body
+### Manual Tenant Scoping
+
+```python
+@api_bp.route('/stats', methods=['GET'])
+@require_oauth('read')
+def get_stats():
+    """Get statistics for current tenant"""
+    tenant = get_current_tenant()
+    
+    stats = {
+        'total_items': Item.query.filter_by(tenant_id=tenant.id).count(),
+        'active_items': Item.query.filter_by(
+            tenant_id=tenant.id,
+            is_active=True
+        ).count(),
+        'tenant_plan': tenant.plan,
+        'user_limit': tenant.max_users,
+        'current_users': tenant.users.count()
+    }
+    
+    return jsonify(stats), 200
+```
+
+### POST Endpoint with JSON Body (Tenant-Aware)
 
 ```python
 from flask import request
@@ -99,16 +140,19 @@ from app import db
 from models import Item
 
 @api_bp.route('/items', methods=['POST'])
+@require_oauth('write')
 def create_item():
-    """Create a new item"""
+    """Create a new item in current tenant"""
+    tenant = get_current_tenant()
     data = request.get_json()
     
     # Validate required fields
     if not data or not data.get('name'):
         return jsonify({'error': 'Name is required'}), 400
     
-    # Create new item
+    # Create new item with tenant_id
     item = Item(
+        tenant_id=tenant.id,
         name=data['name'],
         description=data.get('description', ''),
         price=data.get('price', 0.0)
@@ -158,7 +202,7 @@ def delete_item(item_id):
 
 ## Database Models
 
-### Creating Models
+### Creating Tenant-Aware Models
 
 ```python
 # models.py
@@ -170,6 +214,7 @@ class Item(db.Model):
     __tablename__ = 'items'
     
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False)
     uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
@@ -179,13 +224,22 @@ class Item(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Relationship to tenant
+    tenant = db.relationship('Tenant', backref=db.backref('items', lazy='dynamic'))
+    
     # Relationships
     reviews = db.relationship('Review', backref='item', lazy='dynamic', cascade='all, delete-orphan')
+    
+    # Ensure unique names per tenant
+    __table_args__ = (
+        db.UniqueConstraint('tenant_id', 'name', name='uq_tenant_item_name'),
+    )
     
     def to_dict(self):
         """Convert model to dictionary"""
         return {
             'id': self.id,
+            'tenant_id': self.tenant_id,
             'uuid': self.uuid,
             'name': self.name,
             'description': self.description,
@@ -197,22 +251,31 @@ class Item(db.Model):
         }
     
     def __repr__(self):
-        return f'<Item {self.name}>'
+        return f'<Item {self.name} (Tenant: {self.tenant_id})>'
 
 
 class Review(db.Model):
     __tablename__ = 'reviews'
     
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False)
     item_id = db.Column(db.Integer, db.ForeignKey('items.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     rating = db.Column(db.Integer, nullable=False)
     comment = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # Relationships
+    tenant = db.relationship('Tenant')
+    user = db.relationship('User')
+    
     def to_dict(self):
         return {
             'id': self.id,
+            'tenant_id': self.tenant_id,
             'item_id': self.item_id,
+            'user_id': self.user_id,
+            'username': self.user.username,
             'rating': self.rating,
             'comment': self.comment,
             'created_at': self.created_at.isoformat()
@@ -293,67 +356,63 @@ def get_item(item_id):
 
 ## Authentication & Authorization
 
-### JWT Authentication
+### OAuth 2.0 Protected Endpoints
 
-Install required package:
+The framework uses OAuth 2.0 for authentication. See [OAUTH2.md](OAUTH2.md) for complete details.
+
 ```python
-# requirements.txt
-Flask-JWT-Extended==4.5.3
-```
+from oauth2 import require_oauth
+from authlib.integrations.flask_oauth2 import current_token
 
-Configure JWT:
-```python
-# app.py
-from flask_jwt_extended import JWTManager
-
-def create_app():
-    app = Flask(__name__)
-    
-    app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
-    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
-    
-    jwt = JWTManager(app)
-    
-    return app
-```
-
-Login endpoint:
-```python
-# routes.py
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from werkzeug.security import check_password_hash
-
-@api_bp.route('/auth/login', methods=['POST'])
-def login():
-    """Authenticate user and return JWT token"""
-    data = request.get_json()
-    
-    username = data.get('username')
-    password = data.get('password')
-    
-    user = User.query.filter_by(username=username).first()
-    
-    if not user or not check_password_hash(user.password_hash, password):
-        return jsonify({'error': 'Invalid credentials'}), 401
-    
-    access_token = create_access_token(identity=user.id)
+@api_bp.route('/profile', methods=['GET'])
+@require_oauth('profile')
+def get_profile():
+    """Get current user profile (requires 'profile' scope)"""
+    user = current_token.user
+    tenant = get_current_tenant()
     
     return jsonify({
-        'access_token': access_token,
-        'user': user.to_dict()
+        'user': user.to_dict(),
+        'tenant': tenant.name,
+        'scopes': current_token.scope.split()
     }), 200
+
+@api_bp.route('/admin/stats', methods=['GET'])
+@require_oauth('admin')
+def admin_stats():
+    """Admin-only endpoint (requires 'admin' scope)"""
+    tenant = get_current_tenant()
+    
+    # Get tenant statistics
+    stats = {
+        'total_items': tenant_filter(Item.query).count(),
+        'total_users': tenant.users.count(),
+        'plan': tenant.plan
+    }
+    
+    return jsonify(stats), 200
 ```
 
-Protected endpoint:
+### Role-Based Access Control
+
 ```python
-@api_bp.route('/profile', methods=['GET'])
-@jwt_required()
-def get_profile():
-    """Get current user profile (requires authentication)"""
-    current_user_id = get_jwt_identity()
-    user = User.query.get_or_404(current_user_id)
+from tenant_context import get_current_tenant, check_tenant_role
+
+@api_bp.route('/admin/users', methods=['GET'])
+@require_oauth('read')
+def list_users():
+    """List users (admin or owner only)"""
+    tenant = get_current_tenant()
+    user = current_token.user
     
-    return jsonify(user.to_dict()), 200
+    # Check if user has admin or owner role
+    if user.role not in ['admin', 'owner']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    users = tenant.users.all()
+    return jsonify({
+        'users': [u.to_dict() for u in users]
+    }), 200
 ```
 
 ## Request Validation
@@ -481,7 +540,7 @@ def create_app():
 # tests/test_routes.py
 import pytest
 from app import create_app, db
-from models import Item
+from models import Item, Tenant, User, OAuth2Client
 
 @pytest.fixture
 def client():
@@ -492,31 +551,85 @@ def client():
     with app.test_client() as client:
         with app.app_context():
             db.create_all()
+            
+            # Create test tenant
+            tenant = Tenant(
+                name='Test Tenant',
+                slug='test',
+                plan='free'
+            )
+            db.session.add(tenant)
+            db.session.commit()
+            
         yield client
         with app.app_context():
             db.drop_all()
 
+def get_access_token(client, username='testuser', password='password'):
+    """Helper to get access token"""
+    response = client.post('/oauth/token', data={
+        'grant_type': 'password',
+        'username': username,
+        'password': password,
+        'client_id': 'test_client',
+        'client_secret': 'test_secret'
+    }, headers={'X-Tenant-Slug': 'test'})
+    
+    return response.json['access_token']
+
 def test_get_items(client):
-    """Test GET /api/items"""
-    response = client.get('/api/items')
+    """Test GET /api/items with authentication"""
+    token = get_access_token(client)
+    
+    response = client.get('/api/items', headers={
+        'Authorization': f'Bearer {token}',
+        'X-Tenant-Slug': 'test'
+    })
+    
     assert response.status_code == 200
     data = response.get_json()
     assert 'items' in data
+    assert 'tenant' in data
 
 def test_create_item(client):
     """Test POST /api/items"""
+    token = get_access_token(client)
+    
     response = client.post('/api/items', json={
         'name': 'Test Item',
         'price': 19.99
+    }, headers={
+        'Authorization': f'Bearer {token}',
+        'X-Tenant-Slug': 'test'
     })
+    
     assert response.status_code == 201
     data = response.get_json()
     assert data['name'] == 'Test Item'
+    assert 'tenant_id' in data
+
+def test_tenant_isolation(client):
+    """Test that items are isolated between tenants"""
+    # This test verifies multi-tenant data isolation
+    token1 = get_access_token(client)
+    
+    # Create item in first tenant
+    client.post('/api/items', json={
+        'name': 'Tenant 1 Item'
+    }, headers={
+        'Authorization': f'Bearer {token1}',
+        'X-Tenant-Slug': 'test'
+    })
+    
+    # Verify item is not visible to other tenants
+    # (Would need to create second tenant and verify)
 ```
 
 Run tests:
 ```powershell
 docker-compose exec api pytest
+docker-compose exec api pytest -v  # Verbose output
+docker-compose exec api pytest tests/test_routes.py::test_get_items  # Specific test
 ```
 
 ## Best Practices
@@ -633,6 +746,8 @@ Nginx handles this automatically with the configuration provided.
 
 ## Next Steps
 
+- Review [OAuth 2.0 Guide](OAUTH2.md) for authentication details
+- Check [Multi-Tenant Guide](MULTI_TENANT.md) for advanced multi-tenancy
 - Review [Database Guide](DATABASE.md) for advanced queries
 - Check [Deployment Guide](DEPLOYMENT.md) for production setup
 - See [Troubleshooting](TROUBLESHOOTING.md) for common issues

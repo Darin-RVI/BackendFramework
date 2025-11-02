@@ -1,15 +1,53 @@
 # Backend Framework
 
-A comprehensive Docker-based backend framework with PostgreSQL, Nginx API Gateway, and Nginx WSGI Frontend.
+A comprehensive Docker-based backend framework with PostgreSQL, Nginx API Gateway, OAuth 2.0 authentication, Multi-Tenant support, and Nginx WSGI Frontend.
+
+## Features
+
+- 🔐 **OAuth 2.0 Authentication**: Industry-standard authentication with multiple grant types
+- 🏢 **Multi-Tenant Architecture**: Serve multiple organizations with complete data isolation
+- 🐘 **PostgreSQL**: Robust relational database
+- 🚀 **Flask API**: RESTful API with uWSGI
+- 🌐 **Nginx**: High-performance reverse proxy and load balancer
+- 🐳 **Docker**: Containerized architecture for easy deployment
+- 📊 **PgAdmin**: Web-based database management
+- 🔄 **Token Management**: Access tokens, refresh tokens, and revocation
+- 👥 **Role-Based Access**: User, Admin, and Owner roles per tenant
 
 ## Architecture
 
-- **PostgreSQL**: Database server
-- **API Service**: Python application (Flask/FastAPI/Django) with uWSGI
-- **Nginx API Gateway**: Reverse proxy for API endpoints
+- **PostgreSQL**: Database server with persistent storage
+- **API Service**: Python/Flask application with OAuth 2.0, multi-tenancy, and uWSGI
+- **Nginx API Gateway**: Reverse proxy for API endpoints with caching
 - **Frontend Service**: Python web application with uWSGI
 - **Nginx Frontend**: Reverse proxy for frontend application
-- **PgAdmin**: Web-based PostgreSQL management tool (optional)
+- **PgAdmin**: Web-based PostgreSQL management tool
+
+## Multi-Tenant Support
+
+The framework supports **multi-tenancy** out of the box:
+
+- **Complete Data Isolation**: Each tenant's data is fully separated
+- **Flexible Identification**: Subdomain, custom domain, header, or path-based
+- **Tenant Management**: Full CRUD API for managing tenants and users
+- **Subscription Plans**: Free, Basic, Premium, and Enterprise tiers
+- **Per-Tenant Limits**: Configurable user limits and resource quotas
+- **Role-Based Access**: Owner, Admin, and User roles within each tenant
+
+See [docs/MULTI_TENANT.md](docs/MULTI_TENANT.md) for complete multi-tenant documentation.
+
+## Authentication
+
+This framework uses **OAuth 2.0** for authentication and authorization:
+
+- **Multiple Grant Types**: Authorization Code, Password, Refresh Token, Client Credentials
+- **PKCE Support**: Enhanced security for public clients
+- **Token Revocation**: Server-side token invalidation
+- **Scope-based Access Control**: Fine-grained permissions
+- **OpenID Connect Compatible**: UserInfo endpoint included
+- **Tenant-Aware**: All authentication is tenant-scoped
+
+See [docs/OAUTH2.md](docs/OAUTH2.md) for complete authentication documentation.
 
 ## Services
 
@@ -47,7 +85,50 @@ Edit `.env` with your configuration (database credentials, secret keys, etc.)
 docker-compose up --build
 ```
 
-4. Access the services:
+4. Initialize the database:
+```bash
+# Create migration
+docker-compose exec api flask db init
+docker-compose exec api flask db migrate -m "Initial migration"
+docker-compose exec api flask db upgrade
+```
+
+5. Create your first tenant and OAuth client:
+```bash
+# Register a tenant
+curl -X POST http://localhost:8080/tenants/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenant_name": "Acme Corporation",
+    "tenant_slug": "acme",
+    "admin_username": "admin",
+    "admin_email": "admin@acme.com",
+    "admin_password": "secure123",
+    "plan": "free"
+  }'
+
+# Login to tenant
+curl -X POST http://localhost:8080/oauth/login \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Slug: acme" \
+  -c cookies.txt \
+  -d '{"username": "admin", "password": "secure123"}'
+
+# Register OAuth client for tenant
+curl -X POST http://localhost:8080/oauth/client/register \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Slug: acme" \
+  -b cookies.txt \
+  -d '{
+    "client_name": "My Application",
+    "grant_types": ["password", "refresh_token"],
+    "scope": "read write profile"
+  }'
+
+# Save the client_id and client_secret returned!
+```
+
+6. Access the services:
 - Frontend: http://localhost:8000
 - API: http://localhost:8080
 - PgAdmin: http://localhost:5050
@@ -150,18 +231,65 @@ docker-compose exec postgres psql -U postgres -d backend_db
 
 ### API Development
 
-The API is built with Flask (you can switch to FastAPI or Django). Key files:
+The API is built with Flask and uses OAuth 2.0 for authentication. Key files:
 
-- `api/app.py`: Application factory and configuration
-- `api/routes.py`: API endpoints
+- `api/app.py`: Application factory and OAuth configuration
+- `api/routes.py`: Protected API endpoints
+- `api/auth_routes.py`: OAuth 2.0 authentication endpoints
+- `api/models.py`: Database models (User, OAuth2Client, OAuth2Token)
+- `api/oauth2.py`: OAuth 2.0 server configuration
 - `api/wsgi.py`: WSGI entry point
 - `api/uwsgi.ini`: uWSGI configuration
 
-**Adding new endpoints:**
-Edit `api/routes.py` and add your routes to the `api_bp` blueprint.
+**OAuth 2.0 Endpoints:**
+- `POST /tenants/register` - Register new tenant organization
+- `POST /tenants/info` - Get tenant information
+- `POST /oauth/register` - Register new user (requires tenant context)
+- `POST /oauth/login` - User login (requires tenant context)
+- `POST /oauth/token` - Get access token (supports multiple grant types)
+- `POST /oauth/revoke` - Revoke token
+- `GET /oauth/userinfo` - Get user information (requires token)
+- `POST /oauth/client/register` - Register OAuth client (requires tenant context)
 
-**Database models:**
-Add your SQLAlchemy models in a new `models.py` file.
+**Protected API Endpoints:**
+- `GET /api/protected` - Requires valid access token
+- `GET /api/admin` - Requires 'admin' scope
+- `GET /api/users/me` - Requires 'profile' scope
+
+**Tenant Management Endpoints:**
+- `GET /tenants/list` - List all tenants
+- `GET /tenants/users` - List tenant users (requires admin role)
+- `POST /tenants/users` - Create user in tenant (requires admin role)
+- `GET /tenants/stats` - Get tenant statistics (requires admin role)
+
+**Example: Get Access Token (Multi-Tenant)**
+```bash
+curl -X POST http://localhost:8080/oauth/token \
+  -H "X-Tenant-Slug: acme" \
+  -d "grant_type=password" \
+  -d "username=admin" \
+  -d "password=secure123" \
+  -d "client_id=YOUR_CLIENT_ID" \
+  -d "client_secret=YOUR_CLIENT_SECRET" \
+  -d "scope=read write"
+```
+
+**Example: Call Protected Endpoint**
+```bash
+curl -X GET http://localhost:8080/api/protected \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+**Adding new protected endpoints:**
+```python
+@api_bp.route('/data', methods=['GET'])
+@require_oauth(scope='read')
+def get_data(token):
+    user = User.query.get(token.user_id)
+    return jsonify({'data': [...], 'user': user.username})
+```
+
+See [docs/OAUTH2.md](docs/OAUTH2.md) for complete OAuth 2.0 documentation.
 
 ### Frontend Development
 
@@ -183,6 +311,7 @@ For production deployment:
    - Change `FLASK_ENV` to `production`
    - Set `DEBUG=False`
    - Generate secure secret keys
+   - Update `OAUTH2_ISSUER` to your production domain
 
 2. Remove auto-reload from uWSGI configs:
    - Delete `py-autoreload = 1` from `api/uwsgi.ini` and `frontend/uwsgi.ini`
@@ -197,6 +326,29 @@ For production deployment:
 5. Set up proper logging and monitoring
 
 6. Configure backups for PostgreSQL data
+
+7. Implement token cleanup:
+   - Add cron job to remove expired tokens
+   - Consider Redis for token caching
+
+8. Secure OAuth 2.0:
+   - Use HTTPS for all OAuth endpoints
+   - Implement rate limiting on `/oauth/token`
+   - Monitor failed authentication attempts
+   - Rotate client secrets periodically
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed deployment guide.
+
+## Documentation
+
+- **[Multi-Tenant Guide](docs/MULTI_TENANT.md)** - Complete multi-tenancy documentation
+- **[OAuth 2.0 Guide](docs/OAUTH2.md)** - Complete OAuth 2.0 authentication documentation
+- **[Migration Guide](docs/MIGRATION.md)** - Migrating from JWT to OAuth 2.0
+- **[API Documentation](docs/API_DOCUMENTATION.md)** - API development guide
+- **[Getting Started](docs/GETTING_STARTED.md)** - Detailed setup instructions
+- **[Deployment](docs/DEPLOYMENT.md)** - Production deployment guide
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Architecture Diagram](docs/architecture.drawio)** - Visual architecture overview
 
 ## Troubleshooting
 

@@ -105,6 +105,8 @@ Suitable for:
 |-----------|-----------|---------|
 | Database | PostgreSQL | 15 Alpine |
 | API Framework | Flask | 3.0.0 |
+| Authentication | OAuth 2.0 (Authlib) | 1.2.1 |
+| Multi-Tenant | Built-in | 2.0.0 |
 | WSGI Server | uWSGI | 2.0.23 |
 | Reverse Proxy | Nginx | Alpine |
 | Container Runtime | Docker | Latest |
@@ -140,10 +142,14 @@ Suitable for:
 - **Service Discovery**: Internal DNS for secure service-to-service communication
 
 ### Application Security
+- **OAuth 2.0 Authentication**: Industry-standard authorization framework
+- **Multi-Tenant Isolation**: Complete data separation between tenants
 - **Environment Variables**: Secrets managed outside codebase
 - **Security Headers**: XSS, clickjacking, and MIME-type protection
 - **CORS Configuration**: Controlled cross-origin resource sharing
 - **SQL Injection Protection**: Parameterized queries via SQLAlchemy
+- **Token-Based Security**: Access tokens, refresh tokens, and revocation
+- **Role-Based Access Control**: User, Admin, and Owner roles per tenant
 
 ### Infrastructure Security
 - **Minimal Images**: Alpine Linux base reduces attack surface
@@ -175,6 +181,8 @@ Suitable for:
 ## Next Steps
 
 - [Getting Started Guide](GETTING_STARTED.md) - Set up your first project
+- [Multi-Tenant Guide](MULTI_TENANT.md) - Implement multi-tenancy
+- [OAuth 2.0 Guide](OAUTH2.md) - Configure authentication
 - [API Documentation](API_DOCUMENTATION.md) - Build and document APIs
 - [Frontend Development](FRONTEND_DEVELOPMENT.md) - Create user interfaces
 - [Database Guide](DATABASE.md) - Work with PostgreSQL
@@ -187,6 +195,30 @@ This framework is designed to be self-documenting and easy to understand. Explor
 
 ---
 
-**Version**: 1.0.0  
+**Version**: 2.0.0  
 **Last Updated**: November 2025  
 **License**: MIT
+
+## What's New in 2.0
+
+### OAuth 2.0 Authentication
+- Complete OAuth 2.0 implementation with Authlib
+- Multiple grant types: Authorization Code, Password, Refresh Token, Client Credentials
+- PKCE support for public clients
+- Token revocation and introspection
+- OpenID Connect compatible
+
+### Multi-Tenant Architecture
+- Complete data isolation between tenants
+- Flexible tenant identification (subdomain, domain, header, path)
+- Per-tenant subscription plans (free, basic, premium, enterprise)
+- Role-based access control within tenants
+- Tenant management API
+- Usage limits and statistics tracking
+
+### Enhanced Security
+- Token-based authentication with automatic expiration
+- Tenant-scoped authentication and authorization
+- Comprehensive audit logging
+- Enhanced security headers
+- Rate limiting support

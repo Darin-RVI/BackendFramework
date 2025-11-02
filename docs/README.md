@@ -8,6 +8,11 @@ Welcome to the Backend Framework documentation! This directory contains comprehe
 - **[OVERVIEW.md](OVERVIEW.md)** - Complete framework overview, architecture, and features
 - **[GETTING_STARTED.md](GETTING_STARTED.md)** - Step-by-step setup and first project guide
 
+### Authentication & Security
+- **[OAUTH2.md](OAUTH2.md)** - OAuth 2.0 authentication guide with grant types and examples
+- **[MIGRATION.md](MIGRATION.md)** - Migrating from JWT to OAuth 2.0
+- **[MULTI_TENANT.md](MULTI_TENANT.md)** - Multi-tenant architecture and implementation guide
+
 ### Development Guides
 - **[API_DOCUMENTATION.md](API_DOCUMENTATION.md)** - Build robust REST APIs with Flask
 - **[FRONTEND_DEVELOPMENT.md](FRONTEND_DEVELOPMENT.md)** - Create web interfaces and integrate with APIs
@@ -17,12 +22,24 @@ Welcome to the Backend Framework documentation! This directory contains comprehe
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment strategies and best practices
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Solutions to common issues and problems
 
+### Architecture
+- **[architecture.drawio](architecture.drawio)** - Visual diagram of framework architecture
+
 ## 🚀 Quick Navigation
 
 ### I Want To...
 
 **Set up my first project**
 → Start with [GETTING_STARTED.md](GETTING_STARTED.md)
+
+**Implement multi-tenancy**
+→ Read [MULTI_TENANT.md](MULTI_TENANT.md)
+
+**Implement OAuth 2.0 authentication**
+→ Read [OAUTH2.md](OAUTH2.md)
+
+**Migrate from JWT to OAuth 2.0**
+→ Follow [MIGRATION.md](MIGRATION.md)
 
 **Build an API**
 → Read [API_DOCUMENTATION.md](API_DOCUMENTATION.md)
@@ -40,42 +57,47 @@ Welcome to the Backend Framework documentation! This directory contains comprehe
 → Consult [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 
 **Understand the architecture**
-→ Review [OVERVIEW.md](OVERVIEW.md)
+→ Review [OVERVIEW.md](OVERVIEW.md) or [architecture.drawio](architecture.drawio)
 
 ## 📖 Reading Order
 
 ### For Beginners
 1. [OVERVIEW.md](OVERVIEW.md) - Understand what the framework offers
 2. [GETTING_STARTED.md](GETTING_STARTED.md) - Get your environment running
-3. [API_DOCUMENTATION.md](API_DOCUMENTATION.md) - Learn to build APIs
-4. [DATABASE.md](DATABASE.md) - Master database operations
+3. [OAUTH2.md](OAUTH2.md) - Learn OAuth 2.0 authentication
+4. [API_DOCUMENTATION.md](API_DOCUMENTATION.md) - Learn to build APIs
+5. [DATABASE.md](DATABASE.md) - Master database operations
 
 ### For Experienced Developers
 1. [OVERVIEW.md](OVERVIEW.md) - Quick architecture review
-2. [API_DOCUMENTATION.md](API_DOCUMENTATION.md) - Advanced patterns
-3. [DEPLOYMENT.md](DEPLOYMENT.md) - Production considerations
-4. [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common pitfalls
+2. [OAUTH2.md](OAUTH2.md) - OAuth 2.0 implementation details
+3. [API_DOCUMENTATION.md](API_DOCUMENTATION.md) - Advanced patterns
+4. [DEPLOYMENT.md](DEPLOYMENT.md) - Production considerations
+5. [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common pitfalls
 
 ## 🎯 By Use Case
 
 ### Building a REST API Backend
 1. [GETTING_STARTED.md](GETTING_STARTED.md) - Setup
-2. [DATABASE.md](DATABASE.md) - Design your schema
-3. [API_DOCUMENTATION.md](API_DOCUMENTATION.md) - Implement endpoints
-4. [DEPLOYMENT.md](DEPLOYMENT.md) - Go live
+2. [OAUTH2.md](OAUTH2.md) - Secure with OAuth 2.0
+3. [DATABASE.md](DATABASE.md) - Design your schema
+4. [API_DOCUMENTATION.md](API_DOCUMENTATION.md) - Implement endpoints
+5. [DEPLOYMENT.md](DEPLOYMENT.md) - Go live
 
 ### Full-Stack Web Application
 1. [GETTING_STARTED.md](GETTING_STARTED.md) - Setup
-2. [API_DOCUMENTATION.md](API_DOCUMENTATION.md) - Backend API
-3. [FRONTEND_DEVELOPMENT.md](FRONTEND_DEVELOPMENT.md) - User interface
-4. [DATABASE.md](DATABASE.md) - Data layer
-5. [DEPLOYMENT.md](DEPLOYMENT.md) - Deploy
+2. [OAUTH2.md](OAUTH2.md) - Authentication layer
+3. [API_DOCUMENTATION.md](API_DOCUMENTATION.md) - Backend API
+4. [FRONTEND_DEVELOPMENT.md](FRONTEND_DEVELOPMENT.md) - User interface
+5. [DATABASE.md](DATABASE.md) - Data layer
+6. [DEPLOYMENT.md](DEPLOYMENT.md) - Deploy
 
 ### Microservices Architecture
 1. [OVERVIEW.md](OVERVIEW.md) - Architecture patterns
-2. [API_DOCUMENTATION.md](API_DOCUMENTATION.md) - Service design
-3. [DATABASE.md](DATABASE.md) - Database per service
-4. [DEPLOYMENT.md](DEPLOYMENT.md) - Container orchestration
+2. [OAUTH2.md](OAUTH2.md) - Service-to-service auth
+3. [API_DOCUMENTATION.md](API_DOCUMENTATION.md) - Service design
+4. [DATABASE.md](DATABASE.md) - Database per service
+5. [DEPLOYMENT.md](DEPLOYMENT.md) - Container orchestration
 
 ## 🔍 Quick Reference
 
@@ -142,16 +164,21 @@ If you find errors or want to improve the documentation:
 |-------|------|--------|
 | Framework Overview | OVERVIEW.md | ✅ Complete |
 | Initial Setup | GETTING_STARTED.md | ✅ Complete |
+| Multi-Tenant Architecture | MULTI_TENANT.md | ✅ Complete |
+| OAuth 2.0 Authentication | OAUTH2.md | ✅ Complete |
+| JWT to OAuth 2.0 Migration | MIGRATION.md | ✅ Complete |
 | API Development | API_DOCUMENTATION.md | ✅ Complete |
 | Frontend Development | FRONTEND_DEVELOPMENT.md | ✅ Complete |
 | Database Operations | DATABASE.md | ✅ Complete |
 | Production Deployment | DEPLOYMENT.md | ✅ Complete |
 | Troubleshooting | TROUBLESHOOTING.md | ✅ Complete |
+| Architecture Diagram | architecture.drawio | ✅ Complete |
 
 ## 🔄 Version Information
 
-**Documentation Version**: 1.0.0  
-**Framework Version**: 1.0.0  
+**Documentation Version**: 2.0.0  
+**Framework Version**: 2.0.0  
+**Authentication**: OAuth 2.0  
 **Last Updated**: November 2025
 
 ## 📄 License

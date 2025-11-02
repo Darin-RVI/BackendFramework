@@ -116,56 +116,112 @@ Access the following URLs to verify:
 | API Health | http://localhost:8080/health | Healthy status message |
 | PgAdmin | http://localhost:5050 | PgAdmin login page |
 
-## Your First API Endpoint
+## Your First Authenticated API Request
 
-Let's create a simple "Hello World" endpoint.
+With OAuth 2.0 and multi-tenant support, you need to authenticate to access protected endpoints.
+
+### Step 1: Get an Access Token
+
+```powershell
+# Get access token using Password Grant
+$response = Invoke-RestMethod -Uri "http://localhost:8080/oauth/token" `
+  -Method POST `
+  -Headers @{"X-Tenant-Slug"="acme"} `
+  -Body @{
+    grant_type = "password"
+    username = "admin"
+    password = "secure123"
+    client_id = "YOUR_CLIENT_ID"
+    client_secret = "YOUR_CLIENT_SECRET"
+    scope = "read write"
+  }
+
+$accessToken = $response.access_token
+Write-Host "Access Token: $accessToken"
+```
+
+### Step 2: Call Protected Endpoint
+
+```powershell
+# Call protected API endpoint
+Invoke-RestMethod -Uri "http://localhost:8080/api/protected" `
+  -Headers @{
+    "Authorization" = "Bearer $accessToken"
+    "X-Tenant-Slug" = "acme"
+  }
+
+# Get user profile
+Invoke-RestMethod -Uri "http://localhost:8080/oauth/userinfo" `
+  -Headers @{
+    "Authorization" = "Bearer $accessToken"
+    "X-Tenant-Slug" = "acme"
+  }
+```
+
+### Step 3: Refresh the Token
+
+```powershell
+# When access token expires, use refresh token
+$refreshResponse = Invoke-RestMethod -Uri "http://localhost:8080/oauth/token" `
+  -Method POST `
+  -Headers @{"X-Tenant-Slug"="acme"} `
+  -Body @{
+    grant_type = "refresh_token"
+    refresh_token = $response.refresh_token
+    client_id = "YOUR_CLIENT_ID"
+    client_secret = "YOUR_CLIENT_SECRET"
+  }
+
+$newAccessToken = $refreshResponse.access_token
+```
+
+For more details, see [OAuth 2.0 Documentation](OAUTH2.md) and [Multi-Tenant Guide](MULTI_TENANT.md).
+
+## Adding a Custom API Endpoint
+
+Let's create a simple tenant-aware endpoint.
 
 ### Step 1: Edit the Routes File
 
 Open `api/routes.py` and add a new route:
 
 ```python
-@api_bp.route('/hello', methods=['GET'])
-def hello():
-    """Simple hello world endpoint"""
-    return jsonify({
-        'message': 'Hello, World!',
-        'timestamp': datetime.now().isoformat()
-    }), 200
-
-@api_bp.route('/hello/<name>', methods=['GET'])
-def hello_name(name):
-    """Personalized hello endpoint"""
-    return jsonify({
-        'message': f'Hello, {name}!',
-        'timestamp': datetime.now().isoformat()
-    }), 200
-```
-
-Don't forget to import datetime at the top:
-```python
+from flask import jsonify
 from datetime import datetime
+from authlib.integrations.flask_oauth2 import current_token
+from oauth2 import require_oauth
+from tenant_context import get_current_tenant
+
+@api_bp.route('/hello', methods=['GET'])
+@require_oauth('read')
+def hello():
+    """Simple authenticated hello endpoint"""
+    tenant = get_current_tenant()
+    user = current_token.user
+    
+    return jsonify({
+        'message': f'Hello, {user.username}!',
+        'tenant': tenant.name,
+        'timestamp': datetime.now().isoformat()
+    }), 200
 ```
 
 ### Step 2: Test Your Endpoint
 
 The changes are automatically reloaded (thanks to uWSGI auto-reload in development mode).
 
-Test your new endpoint:
+Test your new endpoint (requires authentication):
 
-**Using a web browser:**
-- Visit: http://localhost:8080/api/hello
-- Visit: http://localhost:8080/api/hello/YourName
-
-**Using curl:**
 ```powershell
-curl http://localhost:8080/api/hello
-curl http://localhost:8080/api/hello/John
-```
+# First, get an access token (see above)
+$token = "YOUR_ACCESS_TOKEN"
 
-**Using PowerShell:**
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/hello"
+# Call the protected endpoint
+Invoke-RestMethod -Uri "http://localhost:8080/api/hello" `
+  -Headers @{
+    "Authorization" = "Bearer $token"
+    "X-Tenant-Slug" = "acme"
+  }
 ```
 
 ## Working with the Database
@@ -210,96 +266,121 @@ INSERT INTO users (username, email) VALUES
 
 **Using SQLAlchemy (recommended):**
 
-Create `api/models.py`:
+Create or update `api/models.py`:
 ```python
 from app import db
 from datetime import datetime
 
-class User(db.Model):
-    __tablename__ = 'users'
+class Product(db.Model):
+    __tablename__ = 'products'
     
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(255), unique=True, nullable=False)
-    email = db.Column(db.String(255), unique=True, nullable=False)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    price = db.Column(db.Numeric(10, 2), default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Ensure uniqueness per tenant
+    __table_args__ = (
+        db.UniqueConstraint('tenant_id', 'name', name='uq_tenant_product_name'),
+    )
     
     def to_dict(self):
         return {
             'id': self.id,
-            'username': self.username,
-            'email': self.email,
+            'tenant_id': self.tenant_id,
+            'name': self.name,
+            'description': self.description,
+            'price': float(self.price),
             'created_at': self.created_at.isoformat()
         }
 ```
 
-Create tables from Python shell:
+Create tables:
 ```powershell
-docker-compose exec api python
+docker-compose exec api flask db migrate -m "Add products table"
+docker-compose exec api flask db upgrade
 ```
 
-```python
-from app import create_app, db
-from models import User
-
-app = create_app()
-with app.app_context():
-    db.create_all()
-    # Add a test user
-    user = User(username='test_user', email='test@example.com')
-    db.session.add(user)
-    db.session.commit()
-```
-
-### Step 4: Create API Endpoints for Database
+### Step 4: Create Tenant-Aware API Endpoints
 
 Update `api/routes.py`:
 
 ```python
 from flask import Blueprint, jsonify, request
 from app import db
-from models import User
+from models import Product
+from oauth2 import require_oauth
+from tenant_context import get_current_tenant, tenant_filter
 
 api_bp = Blueprint('api', __name__)
 
-@api_bp.route('/users', methods=['GET'])
-def get_users():
-    """Get all users"""
-    users = User.query.all()
+@api_bp.route('/products', methods=['GET'])
+@require_oauth('read')
+def get_products():
+    """Get all products for current tenant"""
+    tenant = get_current_tenant()
+    
+    # Automatically filtered by tenant
+    products = tenant_filter(Product.query).all()
+    
     return jsonify({
-        'users': [user.to_dict() for user in users]
+        'products': [product.to_dict() for product in products],
+        'tenant': tenant.name
     }), 200
 
-@api_bp.route('/users', methods=['POST'])
-def create_user():
-    """Create a new user"""
+@api_bp.route('/products', methods=['POST'])
+@require_oauth('write')
+def create_product():
+    """Create a new product in current tenant"""
+    tenant = get_current_tenant()
     data = request.get_json()
     
-    user = User(
-        username=data.get('username'),
-        email=data.get('email')
+    product = Product(
+        tenant_id=tenant.id,
+        name=data.get('name'),
+        description=data.get('description'),
+        price=data.get('price', 0.0)
     )
     
-    db.session.add(user)
+    db.session.add(product)
     db.session.commit()
     
-    return jsonify(user.to_dict()), 201
+    return jsonify(product.to_dict()), 201
 
-@api_bp.route('/users/<int:user_id>', methods=['GET'])
-def get_user(user_id):
-    """Get a specific user"""
-    user = User.query.get_or_404(user_id)
-    return jsonify(user.to_dict()), 200
+@api_bp.route('/products/<int:product_id>', methods=['GET'])
+@require_oauth('read')
+def get_product(product_id):
+    """Get a specific product (tenant-scoped)"""
+    tenant = get_current_tenant()
+    
+    product = tenant_filter(Product.query).filter_by(id=product_id).first_or_404()
+    return jsonify(product.to_dict()), 200
 ```
 
 Test the endpoints:
 ```powershell
-# Get all users
-curl http://localhost:8080/api/users
+# Get all products for tenant
+Invoke-RestMethod -Uri "http://localhost:8080/api/products" `
+  -Headers @{
+    "Authorization" = "Bearer $token"
+    "X-Tenant-Slug" = "acme"
+  }
 
-# Create a new user
-curl -X POST http://localhost:8080/api/users `
-  -H "Content-Type: application/json" `
-  -d '{"username":"newuser","email":"new@example.com"}'
+# Create a new product
+Invoke-RestMethod -Uri "http://localhost:8080/api/products" `
+  -Method POST `
+  -Headers @{
+    "Authorization" = "Bearer $token"
+    "X-Tenant-Slug" = "acme"
+    "Content-Type" = "application/json"
+  } `
+  -Body (@{
+    name = "Laptop"
+    description = "High-performance laptop"
+    price = 1299.99
+  } | ConvertTo-Json)
 ```
 
 ## Customizing the Frontend
@@ -400,13 +481,14 @@ docker-compose exec -T postgres psql -U postgres -d backend_db < backup.sql
 
 ## Next Steps
 
-Now that you have a working setup:
+Now that you have a working multi-tenant OAuth 2.0 setup:
 
-1. 📖 Read the [API Documentation](API_DOCUMENTATION.md) to build robust APIs
-2. 🎨 Check out [Frontend Development](FRONTEND_DEVELOPMENT.md) for UI guidance
-3. 🗄️ Explore [Database Guide](DATABASE.md) for advanced PostgreSQL features
-4. 🚀 Review [Deployment Guide](DEPLOYMENT.md) when ready for production
-5. 🔧 Consult [Troubleshooting](TROUBLESHOOTING.md) if you encounter issues
+1. 📖 Read the [OAuth 2.0 Guide](OAUTH2.md) for authentication details
+2. � Check out [Multi-Tenant Guide](MULTI_TENANT.md) for advanced multi-tenancy features
+3. 🎨 Review [API Documentation](API_DOCUMENTATION.md) to build robust APIs
+4. 🗄️ Explore [Database Guide](DATABASE.md) for advanced PostgreSQL features
+5. 🚀 Review [Deployment Guide](DEPLOYMENT.md) when ready for production
+6. 🔧 Consult [Troubleshooting](TROUBLESHOOTING.md) if you encounter issues
 
 ## Getting Help
 
