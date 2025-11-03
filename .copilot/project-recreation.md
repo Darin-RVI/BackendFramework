@@ -1,12 +1,15 @@
 # Backend Framework - Project Recreation Prompt
 
-You are tasked with recreating the Backend Framework project from scratch. This is a comprehensive Docker-based backend architecture for modern web applications.
+You are tasked with recreating the Backend Framework project from scratch. This is a comprehensive Docker-based backend architecture for modern web applications with **multi-tenant support** and **OAuth 2.0 authentication**.
 
 ## Project Overview
 
-Create a production-ready backend framework using:
-- **PostgreSQL 15** for database
+Create a production-ready, multi-tenant backend framework using:
+- **PostgreSQL 15** for database with multi-tenant data isolation
 - **Python 3.11** with Flask for API and Frontend services
+- **OAuth 2.0** authentication with Authlib (Authorization Code, Password, Client Credentials, Refresh Token grants)
+- **Multi-Tenant Architecture** with tenant identification via subdomain, domain, headers, or path
+- **Role-Based Access Control** (User, Admin, Owner roles within tenants)
 - **uWSGI** for WSGI application servers
 - **Nginx** as reverse proxy for both API and frontend
 - **Docker Compose** for orchestration
@@ -16,12 +19,30 @@ Create a production-ready backend framework using:
 
 The project follows a microservices architecture with these components:
 
-1. **Database Layer**: PostgreSQL with health checks and persistent storage
-2. **API Service**: Python/Flask REST API with uWSGI
-3. **Frontend Service**: Python/Flask web application with uWSGI
-4. **API Gateway**: Nginx reverse proxy for API endpoints
+1. **Database Layer**: PostgreSQL with health checks, persistent storage, and multi-tenant data isolation
+2. **API Service**: Python/Flask REST API with uWSGI, OAuth 2.0 authentication, and multi-tenant support
+3. **Frontend Service**: Python/Flask web application with uWSGI and tenant-aware routing
+4. **API Gateway**: Nginx reverse proxy for API endpoints with tenant routing
 5. **Frontend Proxy**: Nginx reverse proxy for frontend application
 6. **Management**: PgAdmin for database administration
+
+### Multi-Tenant Features
+
+- **Tenant Identification**: Multiple strategies (subdomain, custom domain, headers, path parameters)
+- **Data Isolation**: All tenant data separated by tenant_id foreign keys
+- **Role-Based Access**: User, Admin, Owner roles within each tenant
+- **Tenant Management**: Complete CRUD API for tenant operations
+- **Subscription Plans**: Support for different pricing tiers (free, basic, premium, enterprise)
+- **Usage Limits**: Configurable per-tenant limits (users, API calls, storage)
+
+### OAuth 2.0 Features
+
+- **Multiple Grant Types**: Authorization Code, Password, Client Credentials, Refresh Token
+- **PKCE Support**: Enhanced security for public clients (mobile apps, SPAs)
+- **Scope-Based Access**: Fine-grained permissions (read, write, profile, admin)
+- **Token Management**: Secure token storage, expiration, and revocation
+- **Client Registration**: Dynamic OAuth client registration
+- **Multi-Tenant Integration**: OAuth clients and tokens isolated per tenant
 
 ## Directory Structure
 
@@ -142,17 +163,18 @@ BackendFramework/
    - Expose port 8080
    - CMD: uwsgi --ini uwsgi.ini
 
-2. **Create api/requirements.txt**:
+3. **Create api/requirements.txt**:
    - Flask (3.0.0)
    - Flask-CORS
    - Flask-SQLAlchemy
    - Flask-Migrate
-   - Flask-JWT-Extended
+   - Authlib (OAuth 2.0 library)
    - psycopg2-binary
    - SQLAlchemy
    - uWSGI
    - python-dotenv
    - requests
+   - cryptography (for secure token generation)
 
 3. **Create api/uwsgi.ini**:
    - Master process with 4 workers, 2 threads
@@ -186,10 +208,40 @@ BackendFramework/
    - Error handling
 
 7. **Create api/models.py**:
-   - SQLAlchemy models
-   - User model example
+   - SQLAlchemy models with multi-tenant support
+   - Tenant model (base tenant entity)
+   - User model (with tenant_id foreign key)
+   - OAuth2Client model (tenant-aware OAuth clients)
+   - OAuth2Token model (access/refresh tokens)
+   - OAuth2AuthorizationCode model (authorization codes)
    - Relationships examples
    - to_dict() methods
+   - Proper indexes for tenant isolation
+
+8. **Create api/tenant_context.py**:
+   - TenantContext class for tenant identification
+   - Tenant identification strategies (subdomain, domain, header, path)
+   - require_tenant decorator
+   - tenant_filter utility function
+   - Helper functions for tenant management
+
+9. **Create api/tenant_routes.py**:
+   - Tenant registration endpoint
+   - Tenant management endpoints
+   - User management within tenants
+   - Tenant statistics and settings
+
+10. **Create api/oauth2.py**:
+    - OAuth 2.0 server configuration with Authlib
+    - Grant type implementations (Authorization Code, Password, etc.)
+    - Token validation and introspection
+    - Client credential management
+
+11. **Create api/auth_routes.py**:
+    - OAuth 2.0 endpoints (/authorize, /token, /revoke, etc.)
+    - User registration and login
+    - Client registration and management
+    - Token introspection and user info endpoints
 
 ### Phase 3: Frontend Service
 

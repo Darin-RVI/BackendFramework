@@ -47,26 +47,92 @@ When providing code suggestions or completions:
 ## Framework-Specific Patterns
 
 ### Flask Routes
-Always use this pattern:
+
+Always use this pattern for multi-tenant, OAuth-protected routes:
+
 ```python
+from tenant_context import require_tenant
+from oauth2 import require_oauth
+
 @blueprint.route('/endpoint', methods=['GET', 'POST'])
-def endpoint_name():
+@require_tenant
+@require_oauth(scope='read write')
+def endpoint_name(tenant, token):
     """Docstring explaining what this endpoint does"""
     try:
-        # Route logic
-        return jsonify(data), status_code
+        # Validate tenant access
+        user = User.query.get(token.user_id)
+        if not validate_tenant_access(user, tenant):
+            return jsonify({'error': 'Access denied'}), 403
+        
+        # Route logic with tenant context
+        data = tenant_filter(Model).all()
+        return jsonify({'success': True, 'data': [item.to_dict() for item in data]}), 200
     except Exception as e:
         app.logger.error(f"Error in endpoint_name: {str(e)}")
-        return jsonify({'error': 'Error message'}), 500
+        return jsonify({'success': False, 'error': 'Error message'}), 500
+```
+
+For public endpoints (no authentication required):
+
+```python
+@blueprint.route('/public', methods=['GET'])
+def public_endpoint():
+    """Public endpoint - no authentication required"""
+    try:
+        return jsonify({'success': True, 'data': 'public data'}), 200
+    except Exception as e:
+        app.logger.error(f"Error in public_endpoint: {str(e)}")
+        return jsonify({'success': False, 'error': 'Error message'}), 500
 ```
 
 ### Database Models
-Always include:
+
+Always include for multi-tenant models:
+
 - `__tablename__` attribute
+- `tenant_id` foreign key to tenants table
 - `__repr__` method
 - `to_dict()` method for JSON serialization
 - Proper relationships with cascade rules
-- Indexes on frequently queried columns
+- Indexes on frequently queried columns (including tenant_id)
+- Composite foreign key constraints for tenant isolation
+
+Example multi-tenant model:
+
+```python
+class Document(db.Model):
+    __tablename__ = 'documents'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    content = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Ensure user belongs to same tenant
+    __table_args__ = (
+        db.ForeignKeyConstraint(
+            ['tenant_id', 'user_id'],
+            ['users.tenant_id', 'users.id']
+        ),
+        db.Index('idx_documents_tenant_created', 'tenant_id', 'created_at'),
+    )
+    
+    def __repr__(self):
+        return f'<Document {self.title}>'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'tenant_id': self.tenant_id,
+            'user_id': self.user_id,
+            'title': self.title,
+            'content': self.content,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+```
 
 ### API Responses
 Always return this structure:
@@ -106,25 +172,45 @@ When generating code:
 ## Common Completions
 
 ### When I type "route" suggest:
+
 ```python
+from tenant_context import require_tenant
+from oauth2 import require_oauth
+
 @api_bp.route('/endpoint', methods=['GET'])
-def get_endpoint():
+@require_tenant
+@require_oauth(scope='read')
+def get_endpoint(tenant, token):
     """Description"""
     try:
-        # Logic here
-        return jsonify({'success': True, 'data': {}}), 200
+        # Validate tenant access
+        user = User.query.get(token.user_id)
+        if not validate_tenant_access(user, tenant):
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        # Logic here with tenant context
+        data = tenant_filter(Model).all()
+        return jsonify({'success': True, 'data': [item.to_dict() for item in data]}), 200
     except Exception as e:
+        app.logger.error(f"Error in get_endpoint: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 ```
 
 ### When I type "model" suggest:
+
 ```python
 class ModelName(db.Model):
     __tablename__ = 'table_name'
     
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False)
     name = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Indexes for multi-tenant queries
+    __table_args__ = (
+        db.Index('idx_table_name_tenant', 'tenant_id'),
+    )
     
     def __repr__(self):
         return f'<ModelName {self.name}>'
@@ -132,9 +218,39 @@ class ModelName(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'tenant_id': self.tenant_id,
             'name': self.name,
-            'created_at': self.created_at.isoformat()
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
+```
+
+### When I type "oauth-client" suggest:
+
+```python
+from oauth2 import create_oauth_client
+
+# Create OAuth client for tenant
+client = create_oauth_client(
+    tenant_id=tenant.id,
+    user_id=current_user.id,
+    client_name="My Application",
+    redirect_uris=["http://localhost:3000/callback"],
+    grant_types=["authorization_code", "refresh_token"],
+    scope="read write profile"
+)
+```
+
+### When I type "tenant-query" suggest:
+
+```python
+from tenant_context import tenant_filter, TenantContext
+
+# Use tenant_filter for automatic filtering
+items = tenant_filter(MyModel).filter_by(active=True).all()
+
+# Or manual tenant filtering
+tenant_id = TenantContext.get_tenant_id()
+items = MyModel.query.filter_by(tenant_id=tenant_id, active=True).all()
 ```
 
 ### When I type "template" suggest:
