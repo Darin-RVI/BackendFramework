@@ -2,6 +2,23 @@
 
 This file contains important context and patterns that GitHub Copilot should remember when working with this project.
 
+## AI Assistant Context
+
+**Active Model**: Claude 3.5 Sonnet (Anthropic)
+**Version**: Sonnet 4.5
+**Last Updated**: November 3, 2025
+**Primary User**: Developer working with multi-tenant SaaS architecture
+
+### Interaction Guidelines
+
+- Provide comprehensive, security-focused code suggestions
+- Always consider multi-tenant data isolation in database operations
+- Include OAuth 2.0 authentication in protected endpoints
+- Suggest complete implementations with error handling and logging
+- Reference existing patterns from this codebase
+- Prioritize type safety with Python type hints
+- Generate thorough documentation and docstrings
+
 ## Project Identity
 
 **Name**: Backend Framework

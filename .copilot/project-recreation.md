@@ -2,6 +2,22 @@
 
 You are tasked with recreating the Backend Framework project from scratch. This is a comprehensive Docker-based backend architecture for modern web applications with **multi-tenant support** and **OAuth 2.0 authentication**.
 
+## AI Assistant Information
+
+This project was developed with assistance from **Claude 3.5 Sonnet (Sonnet 4.5)** by Anthropic. The AI model provides:
+- Advanced code generation with security-first approach
+- Multi-tenant architecture expertise
+- OAuth 2.0 implementation guidance
+- Comprehensive documentation generation
+- Pattern recognition and consistency maintenance
+
+When recreating this project, leverage the AI's capabilities for:
+- Generating boilerplate code with proper security considerations
+- Implementing complex multi-tenant database relationships
+- Creating OAuth 2.0 flows with best practices
+- Writing comprehensive tests and documentation
+- Maintaining consistent code patterns across the codebase
+
 ## Project Overview
 
 Create a production-ready, multi-tenant backend framework using:

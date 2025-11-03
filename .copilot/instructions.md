@@ -1,6 +1,34 @@
 # Copilot Instructions
 
-This file provides specific instructions to GitHub Copilot when working with the Backend Framework project.
+This file provides specific instructions to GitHub Copilot (Claude Sonnet 4.5) when working with the Backend Framework project.
+
+## AI Assistant Information
+
+**Model**: Claude 3.5 Sonnet (Anthropic)
+**Version**: Sonnet 4.5
+**Context Window**: Large context support for comprehensive code analysis
+**Capabilities**: Advanced code generation, multi-tenant patterns, OAuth 2.0 implementation, security best practices
+
+### Claude Sonnet 4.5 Strengths
+
+Leverage these capabilities when assisting:
+
+1. **Long Context Understanding**: Can analyze entire files and multiple related files simultaneously
+2. **Code Pattern Recognition**: Excellent at identifying and maintaining consistent patterns across the codebase
+3. **Security Analysis**: Strong capability in identifying security vulnerabilities and suggesting secure implementations
+4. **Multi-File Refactoring**: Can handle complex refactoring across multiple files while maintaining consistency
+5. **Architecture Understanding**: Deep comprehension of multi-tenant and OAuth 2.0 architectural patterns
+6. **Type Safety**: Strong emphasis on type hints and type safety in Python code
+7. **Documentation**: Generates comprehensive, accurate documentation
+
+### Best Practices for This Model
+
+1. **Provide Full Context**: When asking questions, include relevant file paths and context
+2. **Be Specific**: Clearly state whether code should be tenant-aware, OAuth-protected, or public
+3. **Reference Patterns**: Point to similar existing code when requesting new features
+4. **Security First**: Always consider security implications in suggestions
+5. **Test Coverage**: Include test examples when implementing new features
+6. **Documentation**: Expect and request comprehensive docstrings and comments
 
 ## General Instructions
 
@@ -16,6 +44,10 @@ When providing code suggestions or completions:
 8. **Use type hints** in Python code
 9. **Write self-documenting code** with clear names
 10. **Add docstrings** for functions and classes
+11. **Consider multi-tenant implications** in all database operations
+12. **Apply OAuth 2.0 security** to protected endpoints
+13. **Validate tenant context** before data access
+14. **Use established utility functions** (tenant_filter, require_tenant, etc.)
 
 ## Code Style Preferences
 
