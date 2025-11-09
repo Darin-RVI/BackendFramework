@@ -388,6 +388,94 @@ Response:
 
 ## Code Examples
 
+### PowerShell (Windows) - Tested & Working
+
+**Complete Authorization Code Flow:**
+
+```powershell
+# Configuration
+$API_URL = "http://localhost:8080"
+$CLIENT_ID = "your_client_id"
+$CLIENT_SECRET = "your_client_secret"
+$REDIRECT_URI = "http://localhost:3000/callback"
+
+# Step 1: Login to establish session
+$loginBody = @{
+    username = "admin"
+    password = "password123"
+} | ConvertTo-Json
+
+$loginResponse = Invoke-WebRequest -Uri "$API_URL/oauth/login" `
+    -Method POST `
+    -Body $loginBody `
+    -ContentType "application/json" `
+    -SessionVariable session
+
+Write-Host "Login successful"
+
+# Step 2: Get authorization code
+$authUrl = "$API_URL/oauth/authorize?" + `
+    "client_id=$CLIENT_ID&" + `
+    "redirect_uri=$([System.Uri]::EscapeDataString($REDIRECT_URI))&" + `
+    "response_type=code&" + `
+    "scope=profile email&" + `
+    "state=random_state_123"
+
+$authResponse = Invoke-WebRequest -Uri $authUrl `
+    -Method POST `
+    -Body @{ confirm = "yes" } `
+    -WebSession $session `
+    -MaximumRedirection 0 `
+    -ErrorAction SilentlyContinue
+
+$location = $authResponse.Headers['Location']
+$code = ([System.Uri]$location).Query -replace '.*code=([^&]+).*', '$1'
+Write-Host "Authorization code: $code"
+
+# Step 3: Exchange code for token (using HTTP Basic Auth)
+$authBytes = [System.Text.Encoding]::ASCII.GetBytes("${CLIENT_ID}:${CLIENT_SECRET}")
+$authBase64 = [Convert]::ToBase64String($authBytes)
+
+$tokenResponse = Invoke-RestMethod -Uri "$API_URL/oauth/token" `
+    -Method POST `
+    -Headers @{ Authorization = "Basic $authBase64" } `
+    -Body @{
+        grant_type = "authorization_code"
+        code = $code
+        redirect_uri = $REDIRECT_URI
+    } `
+    -ContentType "application/x-www-form-urlencoded"
+
+$ACCESS_TOKEN = $tokenResponse.access_token
+Write-Host "Access token obtained!"
+
+# Step 4: Call protected endpoint
+$data = Invoke-RestMethod -Uri "$API_URL/api/protected" `
+    -Headers @{ Authorization = "Bearer $ACCESS_TOKEN" }
+
+Write-Host "Protected data: $($data | ConvertTo-Json)"
+```
+
+**Password Grant (for trusted apps):**
+
+```powershell
+$authBytes = [System.Text.Encoding]::ASCII.GetBytes("${CLIENT_ID}:${CLIENT_SECRET}")
+$authBase64 = [Convert]::ToBase64String($authBytes)
+
+$tokenResponse = Invoke-RestMethod -Uri "$API_URL/oauth/token" `
+    -Method POST `
+    -Headers @{ Authorization = "Basic $authBase64" } `
+    -Body @{
+        grant_type = "password"
+        username = "john_doe"
+        password = "password123"
+        scope = "read write profile"
+    } `
+    -ContentType "application/x-www-form-urlencoded"
+
+$ACCESS_TOKEN = $tokenResponse.access_token
+```
+
 ### Python Client Example
 
 ```python

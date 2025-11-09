@@ -360,30 +360,125 @@ def create_app():
     return app
 ```
 
-### Authentication Fails
+### OAuth Authentication Issues
 
-**Problem**: JWT authentication not working.
+**Problem**: OAuth 2.0 authentication not working.
 
-**Solutions**:
+**Common Issues & Solutions**:
 
-1. **Check Secret Key**:
+1. **"insecure_transport" Error**:
+   - **Problem**: Authlib requires HTTPS by default
+   - **Solution**: For development, enable insecure transport:
+   ```yaml
+   # docker-compose.yml
+   services:
+     api:
+       environment:
+         AUTHLIB_INSECURE_TRANSPORT: "true"
+   ```
+   
    ```python
-   # Ensure JWT_SECRET_KEY is set
-   import os
-   print(os.getenv('JWT_SECRET_KEY'))
+   # api/app.py - Alternative approach
+   if os.getenv('FLASK_ENV') == 'development':
+       os.environ['AUTHLIB_INSECURE_TRANSPORT'] = 'true'
    ```
 
-2. **Token Expiration**:
-   ```python
-   # Increase token lifetime
-   app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
+2. **"invalid_client" Error**:
+   - **Problem**: Client authentication failing at token endpoint
+   - **Solution**: Use HTTP Basic Auth with client credentials:
+   ```powershell
+   # Correct format
+   $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${client_id}:${client_secret}"))
+   $headers = @{ Authorization = "Basic $auth" }
+   Invoke-RestMethod -Uri "http://localhost:8080/oauth/token" -Method POST -Headers $headers
    ```
 
-3. **Test Token Generation**:
+3. **"AttributeError: check_endpoint_auth_method"**:
+   - **Problem**: OAuth2Client model missing required method
+   - **Solution**: Add method to models.py:
    ```python
-   from flask_jwt_extended import create_access_token
-   token = create_access_token(identity=user.id)
-   print(token)
+   def check_endpoint_auth_method(self, method, endpoint):
+       """Check if authentication method is supported for endpoint."""
+       if endpoint == 'token':
+           return self.check_token_endpoint_auth_method(method)
+       return self.token_endpoint_auth_method == method
+   ```
+
+4. **"TypeError: 'expires_in' is an invalid keyword"**:
+   - **Problem**: Authlib passes `expires_in` but model expects `access_token_expires_at`
+   - **Solution**: Create custom save_token function in oauth2.py:
+   ```python
+   def save_token(token, request):
+       import time
+       expires_in = token.get('expires_in', 3600)
+       access_token_expires_at = int(time.time()) + expires_in
+       
+       oauth_token = OAuth2Token(
+           tenant_id=tenant_id,
+           access_token=token['access_token'],
+           access_token_expires_at=access_token_expires_at,
+           # ... other fields
+       )
+       db.session.add(oauth_token)
+       db.session.commit()
+   ```
+
+5. **Werkzeug Version Compatibility**:
+   - **Problem**: Authlib 1.2.1 incompatible with Werkzeug 3.x
+   - **Solution**: Pin compatible versions:
+   ```txt
+   # requirements.txt
+   Flask==2.2.5
+   Werkzeug==2.2.3
+   Authlib==1.2.1
+   ```
+   
+   ```txt
+   # constraints.txt (new file)
+   Werkzeug==2.2.3
+   Flask==2.2.5
+   ```
+   
+   ```dockerfile
+   # Dockerfile - Use constraints during install
+   RUN pip install --upgrade pip && \
+       PIP_CONSTRAINT=constraints.txt pip install Werkzeug Flask && \
+       pip install -r requirements.txt
+   ```
+
+6. **Token Validation in Protected Routes**:
+   - **Problem**: `resource_protector.validate_request()` signature issues
+   - **Solution**: Use Authlib's decorator directly:
+   ```python
+   def require_oauth(scope=None):
+       """Decorator for OAuth-protected routes."""
+       return current_app.resource_protector(scope)
+   ```
+
+7. **Testing OAuth Flow**:
+   ```powershell
+   # Step 1: Login to get session
+   $loginBody = @{ username = "admin"; password = "password" } | ConvertTo-Json
+   $session = @{}
+   Invoke-WebRequest -Uri "http://localhost:8080/oauth/login" -Method POST `
+       -Body $loginBody -ContentType "application/json" -SessionVariable session
+   
+   # Step 2: Get authorization code
+   $authUrl = "http://localhost:8080/oauth/authorize?client_id=$client_id&redirect_uri=http://localhost:3000/callback&response_type=code&scope=profile email&state=random123"
+   $response = Invoke-WebRequest -Uri $authUrl -Method POST -Body @{confirm="yes"} `
+       -WebSession $session -MaximumRedirection 0 -ErrorAction SilentlyContinue
+   $code = ([System.Uri]$response.Headers['Location']).Query -replace '.*code=([^&]+).*', '$1'
+   
+   # Step 3: Exchange code for token
+   $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${client_id}:${client_secret}"))
+   $headers = @{ Authorization = "Basic $auth" }
+   $tokenBody = @{ grant_type = "authorization_code"; code = $code; redirect_uri = "http://localhost:3000/callback" }
+   $token = Invoke-RestMethod -Uri "http://localhost:8080/oauth/token" -Method POST `
+       -Body $tokenBody -ContentType "application/x-www-form-urlencoded" -Headers $headers
+   
+   # Step 4: Use access token
+   $authHeaders = @{ Authorization = "Bearer $($token.access_token)" }
+   Invoke-RestMethod -Uri "http://localhost:8080/api/protected" -Headers $authHeaders
    ```
 
 ## Frontend Issues

@@ -1,0 +1,11 @@
+# MkDocs Material Theme and Dependencies
+mkdocs>=1.5.3
+mkdocs-material>=9.5.0
+mkdocs-glightbox>=0.3.5
+
+# Markdown Extensions
+pymdown-extensions>=10.7
+
+# Additional useful plugins
+mkdocs-minify-plugin>=0.8.0
+mkdocs-redirects>=1.2.1

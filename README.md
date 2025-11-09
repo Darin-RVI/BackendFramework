@@ -13,6 +13,20 @@ A comprehensive Docker-based backend framework with PostgreSQL, Nginx API Gatewa
 - 📊 **PgAdmin**: Web-based database management
 - 🔄 **Token Management**: Access tokens, refresh tokens, and revocation
 - 👥 **Role-Based Access**: User, Admin, and Owner roles per tenant
+- ✅ **Fully Tested**: All components tested and validated (see [Testing Results](docs/TESTING_RESULTS.md))
+
+## Status
+
+🎉 **All Core Features Tested & Working** (November 9, 2025)
+
+- ✅ Docker infrastructure running
+- ✅ Multi-tenant registration and isolation
+- ✅ OAuth 2.0 authorization code flow
+- ✅ Token generation and validation
+- ✅ Protected endpoint access
+- ✅ Database migrations working
+
+See [docs/TESTING_RESULTS.md](docs/TESTING_RESULTS.md) for comprehensive testing details.
 
 ## Architecture
 
@@ -340,6 +354,33 @@ For production deployment:
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed deployment guide.
 
 ## Documentation
+
+### Viewing Documentation
+
+The project documentation is built with **MkDocs** using the **Material for MkDocs** theme.
+
+**View Documentation Locally:**
+
+1. Install MkDocs and dependencies:
+```bash
+pip install -r docs-requirements.txt
+```
+
+2. Serve the documentation:
+```bash
+mkdocs serve
+```
+
+3. Open your browser to http://127.0.0.1:8000
+
+**Build Static Documentation:**
+```bash
+mkdocs build
+```
+
+This generates a `site/` directory with static HTML files that can be deployed to any web server.
+
+### Documentation Guides
 
 - **[Multi-Tenant Guide](docs/MULTI_TENANT.md)** - Complete multi-tenancy documentation
 - **[OAuth 2.0 Guide](docs/OAUTH2.md)** - Complete OAuth 2.0 authentication documentation

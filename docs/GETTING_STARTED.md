@@ -68,6 +68,15 @@ PGADMIN_PORT=5050
 # Application Secret Keys
 SECRET_KEY=your_secret_key_here  # Generate a random string!
 JWT_SECRET_KEY=your_jwt_secret_key_here  # Generate a random string!
+
+# OAuth 2.0 Configuration
+OAUTH2_ISSUER=http://localhost:8080
+OAUTH2_ACCESS_TOKEN_EXPIRES=3600  # 1 hour
+OAUTH2_REFRESH_TOKEN_EXPIRES=2592000  # 30 days
+OAUTH2_AUTHORIZATION_CODE_EXPIRES=600  # 10 minutes
+
+# Development Only - Allow OAuth over HTTP (NEVER use in production!)
+AUTHLIB_INSECURE_TRANSPORT=true
 ```
 
 **⚠️ Security Note**: Always change the default passwords and generate secure secret keys!

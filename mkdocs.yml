@@ -1,0 +1,122 @@
+site_name: Backend Framework Documentation
+site_description: A comprehensive Docker-based backend framework with PostgreSQL, OAuth 2.0, and Multi-Tenant support
+site_author: Backend Framework Team
+site_url: https://yourdomain.com
+
+repo_name: Darin-RVI/BackendFramework
+repo_url: https://github.com/Darin-RVI/BackendFramework
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - search.share
+    - toc.follow
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search:
+      lang: en
+      separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
+  - glightbox
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Darin-RVI/BackendFramework
+  version:
+    provider: mike
+
+nav:
+  - Home: 
+    - Overview: index.md
+    - Getting Started: GETTING_STARTED.md
+  - Architecture:
+    - System Overview: OVERVIEW.md
+    - Architecture Details: architecture.md
+  - Core Features:
+    - OAuth 2.0 Authentication: OAUTH2.md
+    - OAuth 2.0 Quick Reference: OAUTH2_QUICK_REFERENCE.md
+    - Multi-Tenant Support: MULTI_TENANT.md
+    - Database Schema: DATABASE.md
+  - Development:
+    - API Documentation: API_DOCUMENTATION.md
+    - Frontend Development: FRONTEND_DEVELOPMENT.md
+    - Migration Guide: MIGRATION.md
+  - Deployment:
+    - Deployment Guide: DEPLOYMENT.md
+    - Troubleshooting: TROUBLESHOOTING.md
+
+copyright: Copyright &copy; 2025 Backend Framework Team

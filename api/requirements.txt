@@ -1,10 +1,14 @@
 # Web Framework (choose one or use multiple)
-Flask==3.0.0
+# Using Flask 2.2.x for compatibility with Authlib and Werkzeug 2.2.x
+Flask==2.2.5
 Flask-CORS==4.0.0
-Flask-SQLAlchemy==3.1.1
+Flask-SQLAlchemy==3.0.5
 Flask-Migrate==4.0.5
+# Werkzeug 2.2.x has __version__ attribute that Authlib needs
+Werkzeug==2.2.3
 
 # OAuth 2.0 / OpenID Connect
+# Authlib 1.2.1 works with Werkzeug 2.2.x
 Authlib==1.2.1
 cryptography==41.0.7
 
